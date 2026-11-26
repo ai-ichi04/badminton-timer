@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#e8431a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="タイマー">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>バドミントン インターバルタイマー</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Roboto:wght@700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f2f4f7; --card:#ffffff; --fg:#14181f; --sub:#566072; --line:#cfd5de;
+  --accent:#1f6fe0; --accent-fg:#ffffff; --btn:#e4e9f0; --btn-fg:#14181f;
+  --ring:#1f6fe0; --track:#dde3ec;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0e1116; --card:#1a1f27; --fg:#eef1f5; --sub:#9aa5b5; --line:#343c4a;
+    --accent:#5b9bff; --accent-fg:#0b1220; --btn:#2a313d; --btn-fg:#eef1f5;
+    --ring:#5b9bff; --track:#343c4a;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--fg);
+  font-family:"Noto Sans JP",system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+  line-height:1.5; overflow-x:hidden; -webkit-text-size-adjust:100%;
+}
+.wrap{max-width:480px;margin:0 auto;padding:calc(12px + env(safe-area-inset-top)) 12px calc(24px + env(safe-area-inset-bottom))}
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.top h1{font-size:18px;margin:0;font-weight:900}
+.btn{
+  min-height:48px;border:0;border-radius:12px;background:var(--btn);color:var(--btn-fg);
+  font:inherit;font-weight:700;font-size:16px;padding:0 14px;cursor:pointer;
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+}
+.btn:active:not(:disabled){filter:brightness(.92)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.primary{background:var(--accent);color:var(--accent-fg)}
+.btn.sel{background:var(--accent);color:var(--accent-fg);box-shadow:0 0 0 3px var(--card),0 0 0 5px var(--accent)}
+.btn.off{background:transparent;box-shadow:inset 0 0 0 2px var(--line);color:var(--sub)}
+
+/* 表示パネル */
+.panel{
+  --pbg:var(--card); --pfg:var(--fg); --pring:var(--ring); --ptrack:var(--track);
+  background:var(--pbg); color:var(--pfg);
+  border-radius:20px; padding:14px 12px 16px; text-align:center;
+  border:1px solid var(--line);
+}
+.panel.st-prep{--pbg:#f2a900;--pfg:#1c1300;--pring:#1c1300;--ptrack:rgba(28,19,0,.22);border-color:transparent}
+.panel.st-work{--pbg:#e8431a;--pfg:#ffffff;--pring:#ffffff;--ptrack:rgba(255,255,255,.32);border-color:transparent}
+.panel.st-rest{--pbg:#1a9a52;--pfg:#ffffff;--pring:#ffffff;--ptrack:rgba(255,255,255,.32);border-color:transparent}
+.panel.st-done{--pbg:#1f6fe0;--pfg:#ffffff;--pring:#ffffff;--ptrack:rgba(255,255,255,.32);border-color:transparent}
+.status{font-size:clamp(26px,8vw,36px);font-weight:900;letter-spacing:.04em;min-height:1.4em}
+.ringbox{position:relative;width:min(100%,340px);aspect-ratio:1/1;margin:4px auto 6px}
+.ringbox svg{width:100%;height:100%;display:block}
+.ringbox .track{fill:none;stroke:var(--ptrack);stroke-width:12}
+.ringbox .fg{fill:none;stroke:var(--pring);stroke-width:12;stroke-linecap:round}
+.time{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:"Roboto",system-ui,sans-serif;font-weight:900;
+  font-size:clamp(52px,17vw,84px);
+  font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;letter-spacing:.01em;
+}
+.info{display:flex;flex-direction:column;gap:2px;font-size:18px;font-weight:700}
+.info .sub{font-size:16px;font-weight:700;opacity:.9;font-variant-numeric:tabular-nums}
+.blink{animation:blink .5s steps(1,end) infinite}
+@keyframes blink{0%{filter:none}50%{filter:brightness(.5)}}
+@media (prefers-reduced-motion: reduce){.blink{animation:none}}
+
+.ctrl{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:8px;margin:12px 0}
+.ctrl .btn{min-height:56px;font-size:17px;padding:0 6px}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:12px}
+.card h2{font-size:16px;margin:0 0 6px;font-weight:900}
+.row{display:grid;grid-template-columns:4.4em 48px minmax(0,1fr) 48px;gap:8px;align-items:center;margin:8px 0}
+.row label{font-weight:700;font-size:16px}
+.row label small{color:var(--sub);font-weight:400;margin-left:2px}
+.row .step{padding:0;font-size:22px}
+.num,.txt{
+  width:100%;min-width:0;min-height:48px;border:2px solid var(--line);border-radius:12px;
+  background:var(--bg);color:var(--fg);font:inherit;font-size:20px;font-weight:700;text-align:center;
+}
+.txt{font-size:17px;text-align:left;padding:0 12px}
+.num:disabled,.txt:disabled{opacity:.5}
+.num:focus,.txt:focus{outline:3px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+.total{margin-top:10px;font-weight:700;display:flex;justify-content:space-between;align-items:baseline}
+.total span:last-child{font-size:24px;font-variant-numeric:tabular-nums;font-family:"Roboto",system-ui,sans-serif;font-weight:900}
+.memgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px}
+.memgrid .btn{padding:0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15px}
+.namerow label{display:block;font-weight:700;margin-bottom:4px;font-size:14px;color:var(--sub)}
+.vol{display:flex;align-items:center;gap:10px;margin:6px 0 10px}
+.vol input[type=range]{flex:1;min-width:0;height:44px;accent-color:var(--accent)}
+.vol output{min-width:3.4em;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.btnrow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.msg{min-height:1.4em;margin:6px 0 0;font-size:14px;color:var(--sub)}
+.note{font-size:14px;color:var(--sub);padding:2px 4px}
+.note ul{margin:6px 0 0;padding-left:1.2em}
+.note li{margin:4px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>インターバルタイマー</h1>
+    <button id="soundBtn" class="btn" type="button" aria-pressed="true">音 ON</button>
+  </header>
+
+  <section id="panel" class="panel st-idle" aria-live="off">
+    <div id="statusText" class="status">スタート待ち</div>
+    <div class="ringbox">
+      <svg viewBox="0 0 200 200" aria-hidden="true">
+        <circle class="track" cx="100" cy="100" r="88"></circle>
+        <circle id="ringFg" class="fg" cx="100" cy="100" r="88" transform="rotate(-90 100 100)"></circle>
+      </svg>
+      <div id="timeText" class="time">00:00</div>
+    </div>
+    <div class="info">
+      <span id="roundText">ラウンド 0 / 8</span>
+      <span id="totalLeft" class="sub">全体の残り 00:00</span>
+    </div>
+  </section>
+
+  <div class="ctrl">
+    <button id="startBtn" class="btn primary" type="button">スタート</button>
+    <button id="nextBtn" class="btn" type="button" disabled>次へ</button>
+    <button id="resetBtn" class="btn" type="button">リセット</button>
+  </div>
+
+  <section class="card">
+    <h2>設定</h2>
+    <div id="rows"></div>
+    <div class="total"><span>合計時間</span><span id="totalTime">00:00</span></div>
+  </section>
+
+  <section class="card">
+    <h2>メモリ</h2>
+    <div id="memGrid" class="memgrid"></div>
+    <div class="namerow">
+      <label for="nameIn">メモリの名前（12文字まで）</label>
+      <input id="nameIn" class="txt" data-lock type="text" maxlength="12" autocomplete="off" autocapitalize="off" spellcheck="false">
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>音</h2>
+    <div class="vol">
+      <label for="volIn">音量</label>
+      <input id="volIn" type="range" min="30" max="100" step="10" value="100">
+      <output id="volOut" for="volIn">100%</output>
+    </div>
+    <div class="btnrow">
+      <button id="testBtn" class="btn" type="button">音テスト</button>
+      <button id="voiceBtn" class="btn off" type="button" aria-pressed="false">声で知らせる：OFF</button>
+    </div>
+    <p id="msg" class="msg" role="status"></p>
+  </section>
+
+  <section class="note">
+    <ul>
+      <li>体育館では、スマホ本体の音量を最大にして、Bluetoothスピーカーにつなぐのが確実です。</li>
+      <li>音が鳴らないときは、本体の消音スイッチ（マナーモード）を確認してください。</li>
+      <li>ブラウザの制限で、このページはスマホ本体の音量を変えられません。上の音量はページ内の大きさです。</li>
+      <li>動作中は画面が消えないようにします（非対応の端末では消えることがあります）。</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+'use strict';
+
+/* ===== 設定の範囲とメモリ ===== */
+const LIM = { prep:[0,120], work:[1,3600], rest:[0,3600], count:[1,99] };
+const KEYS = ['prep','work','rest','count'];
+const DEF = { name:'', prep:5, work:30, rest:15, count:8 };
+const ROWS = [
+  { key:'prep',  label:'準備', unit:'秒' },
+  { key:'work',  label:'運動', unit:'秒' },
+  { key:'rest',  label:'休憩', unit:'秒' },
+  { key:'count', label:'回数', unit:'回' }
+];
+const LS_MEM = 'badmintonTimer.memories.v1';
+const LS_PREF = 'badmintonTimer.prefs.v1';
+
+function lsGet(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }
+function lsSet(k,v){ try { localStorage.setItem(k,v); } catch(e){} }
+
+function clamp(key, v){
+  v = Math.round(Number(v));
+  if (!isFinite(v)) v = DEF[key];
+  return Math.min(LIM[key][1], Math.max(LIM[key][0], v));
+}
+
+let mems = [0,1,2,3,4].map(() => Object.assign({}, DEF));
+let sel = 0;
+let prefs = { vol:100, sound:true, voice:false };
+
+function loadAll(){
+  try {
+    const raw = lsGet(LS_MEM);
+    if (raw) {
+      const o = JSON.parse(raw);
+      if (o && Array.isArray(o.mems)) {
+        for (let i = 0; i < 5; i++) {
+          const m = o.mems[i];
+          if (m && typeof m === 'object') {
+            const n = { name:String(m.name == null ? '' : m.name).slice(0,12) };
+            KEYS.forEach(k => { n[k] = clamp(k, m[k] == null ? DEF[k] : m[k]); });
+            mems[i] = n;
+          }
+        }
+        if (Number.isInteger(o.sel) && o.sel >= 0 && o.sel < 5) sel = o.sel;
+      }
+    }
+  } catch(e){}
+  try {
+    const raw = lsGet(LS_PREF);
+    if (raw) {
+      const p = JSON.parse(raw);
+      if (p && typeof p === 'object') {
+        const v = Math.round(Number(p.vol) / 10) * 10;
+        if (isFinite(v)) prefs.vol = Math.min(100, Math.max(30, v));
+        prefs.sound = p.sound !== false;
+        prefs.voice = p.voice === true;
+      }
+    }
+  } catch(e){}
+}
+function saveMem(){ lsSet(LS_MEM, JSON.stringify({ sel:sel, mems:mems })); }
+function savePrefs(){ lsSet(LS_PREF, JSON.stringify(prefs)); }
+
+/* ===== 区間の組み立て ===== */
+function buildSegs(m){
+  const s = [];
+  if (m.prep > 0) s.push({ type:'prep', dur:m.prep, round:0 });
+  for (let i = 1; i <= m.count; i++) {
+    s.push({ type:'work', dur:m.work, round:i });
+    if (m.rest > 0 && i < m.count) s.push({ type:'rest', dur:m.rest, round:i });
+  }
+  return s;
+}
+function totalSec(m){ return m.prep + m.count * m.work + (m.count - 1) * m.rest; }
+function fmt(s){
+  s = Math.max(0, Math.round(s));
+  return String(Math.floor(s / 60)).padStart(2,'0') + ':' + String(s % 60).padStart(2,'0');
+}
+
+/* ===== 実行状態 ===== */
+const run = { mode:'idle', paused:false, segs:[], after:[], count:0, idx:0, segEnd:0, remain:0, lastBeep:null };
+const LABEL = { prep:'準備', work:'運動', rest:'休憩' };
+
+function startRun(){
+  initAudio();
+  const m = mems[sel];
+  run.segs = buildSegs(m);
+  run.count = m.count;
+  run.after = run.segs.map((_, i) => run.segs.slice(i + 1).reduce((a, s) => a + s.dur * 1000, 0));
+  run.idx = 0;
+  run.paused = false;
+  run.mode = 'run';
+  run.lastBeep = null;
+  run.segEnd = Date.now() + run.segs[0].dur * 1000;
+  startSilent();
+  acquireWake();
+  applyLock();
+  onEnter(run.segs[0]);
+  render();
+}
+function pauseRun(){
+  if (run.mode !== 'run' || run.paused) return;
+  run.remain = Math.max(0, run.segEnd - Date.now());
+  run.paused = true;
+  render();
+}
+function resumeRun(){
+  if (run.mode !== 'run' || !run.paused) return;
+  initAudio();
+  run.segEnd = Date.now() + run.remain;
+  run.paused = false;
+  startSilent();
+  acquireWake();
+  render();
+}
+function skipRun(){
+  if (run.mode !== 'run') return;
+  run.idx++;
+  if (run.idx >= run.segs.length) { finishRun(); return; }
+  const dur = run.segs[run.idx].dur * 1000;
+  run.lastBeep = null;
+  if (run.paused) {
+    run.remain = dur;
+  } else {
+    run.segEnd = Date.now() + dur;
+    onEnter(run.segs[run.idx]);
+  }
+  render();
+}
+function finishRun(){
+  run.mode = 'done';
+  run.paused = false;
+  stopSilent();
+  releaseWake();
+  playFinish();
+  speak('おつかれさま');
+  vib([300,120,300,120,600]);
+  applyLock();
+  render();
+}
+function resetRun(){
+  run.mode = 'idle';
+  run.paused = false;
+  stopSilent();
+  releaseWake();
+  try { if ('speechSynthesis' in window) speechSynthesis.cancel(); } catch(e){}
+  applyLock();
+  render();
+}
+function onEnter(seg){
+  if (seg.type === 'work') { playWork(); speak('スタート'); }
+  else if (seg.type === 'rest') { playRest(); speak('きゅうけい'); }
+  else { playPrep(); speak('じゅんび'); }
+  vib([200]);
+}
+
+/* 100msごとに終了時刻と比べて残り時間を出す（加算しない） */
+function tick(){
+  if (run.mode !== 'run' || run.paused) return;
+  const now = Date.now();
+  let entered = false;
+  while (run.segEnd <= now) {
+    run.idx++;
+    if (run.idx >= run.segs.length) { finishRun(); return; }
+    run.segEnd += run.segs[run.idx].dur * 1000;   // 遅れても次の区間の長さを足して進める
+    run.lastBeep = null;
+    entered = true;
+  }
+  if (entered) onEnter(run.segs[run.idx]);
+  const seg = run.segs[run.idx];
+  const sec = Math.ceil((run.segEnd - now) / 1000);
+  if (sec <= 3 && sec >= 1 && sec < seg.dur && run.lastBeep !== sec) {
+    run.lastBeep = sec;
+    playCountdown();
+  }
+  render();
+}
+
+/* ===== 画面 ===== */
+const $ = id => document.getElementById(id);
+const panel = $('panel'), ringFg = $('ringFg');
+const RING_C = 2 * Math.PI * 88;
+ringFg.style.strokeDasharray = RING_C.toFixed(2);
+
+function render(){
+  const m = mems[sel];
+  let cls = 'st-idle', status = 'スタート待ち', timeStr, frac = 1, round, totalLeft, blink = false;
+  if (run.mode === 'idle') {
+    const first = buildSegs(m)[0];
+    timeStr = fmt(first.dur);
+    round = 'ラウンド 0 / ' + m.count;
+    totalLeft = totalSec(m);
+  } else if (run.mode === 'done') {
+    cls = 'st-done'; status = 'おつかれさま！';
+    timeStr = '00:00'; frac = 1;
+    round = 'ラウンド ' + run.count + ' / ' + run.count;
+    totalLeft = 0;
+  } else {
+    const seg = run.segs[run.idx];
+    const rem = Math.max(0, run.paused ? run.remain : run.segEnd - Date.now());
+    cls = 'st-' + seg.type;
+    status = LABEL[seg.type] + (run.paused ? '（一時停止中）' : '');
+    timeStr = fmt(Math.ceil(rem / 1000));
+    frac = Math.min(1, rem / (seg.dur * 1000));
+    round = 'ラウンド ' + seg.round + ' / ' + run.count;
+    totalLeft = Math.ceil((rem + run.after[run.idx]) / 1000);
+    blink = !run.paused && rem > 0 && rem <= 3000;
+  }
+  panel.className = 'panel ' + cls + (blink ? ' blink' : '');
+  $('statusText').textContent = status;
+  $('timeText').textContent = timeStr;
+  ringFg.style.strokeDashoffset = (RING_C * (1 - frac)).toFixed(2);
+  $('roundText').textContent = round;
+  $('totalLeft').textContent = '全体の残り ' + fmt(totalLeft);
+  $('totalTime').textContent = fmt(totalSec(m));
+
+  const sb = $('startBtn');
+  sb.textContent = run.mode === 'run' ? (run.paused ? '再開' : '一時停止') : (run.mode === 'done' ? 'もう一度' : 'スタート');
+  $('nextBtn').disabled = run.mode !== 'run';
+}
+
+function applyLock(){
+  const lock = run.mode === 'run';
+  document.querySelectorAll('[data-lock]').forEach(el => { el.disabled = lock; });
+}
+
+/* ===== 設定欄・メモリ欄 ===== */
+function buildRows(){
+  $('rows').innerHTML = ROWS.map(r => `
+    <div class="row">
+      <label for="in-${r.key}">${r.label}<small>${r.unit}</small></label>
+      <button class="btn step" type="button" data-lock data-key="${r.key}" data-dir="-1" aria-label="${r.label}を減らす">−</button>
+      <input id="in-${r.key}" class="num" type="number" inputmode="numeric" pattern="[0-9]*" data-lock data-key="${r.key}" min="${LIM[r.key][0]}" max="${LIM[r.key][1]}" step="1">
+      <button class="btn step" type="button" data-lock data-key="${r.key}" data-dir="1" aria-label="${r.label}を増やす">＋</button>
+    </div>`).join('');
+  $('memGrid').innerHTML = [0,1,2,3,4].map(i =>
+    `<button class="btn" type="button" data-lock data-mem="${i}"></button>`).join('');
+}
+function stepVal(key, v, dir){
+  if (key === 'count') return clamp(key, v + dir);
+  if (dir > 0) return clamp(key, (Math.floor(v / 5) + 1) * 5);   // 1→5→10, 11→15
+  return clamp(key, (Math.ceil(v / 5) - 1) * 5);                 // 11→10, 10→5
+}
+function memLabel(i){ return (mems[i].name || '').trim() || 'メモリ' + (i + 1); }
+function syncMemButtons(){
+  document.querySelectorAll('[data-mem]').forEach(b => {
+    const i = Number(b.dataset.mem);
+    b.textContent = memLabel(i);
+    b.classList.toggle('sel', i === sel);
+    b.setAttribute('aria-pressed', i === sel ? 'true' : 'false');
+  });
+}
+function syncInputs(){
+  KEYS.forEach(k => { $('in-' + k).value = mems[sel][k]; });
+  const n = $('nameIn');
+  n.value = mems[sel].name;
+  n.placeholder = 'メモリ' + (sel + 1);
+}
+function syncAll(){ syncInputs(); syncMemButtons(); render(); }
+
+function bindUI(){
+  document.querySelectorAll('.step').forEach(b => b.addEventListener('click', () => {
+    if (run.mode === 'run') return;
+    const k = b.dataset.key;
+    mems[sel][k] = stepVal(k, mems[sel][k], Number(b.dataset.dir));
+    saveMem(); syncInputs(); render();
+  }));
+  KEYS.forEach(k => {
+    const el = $('in-' + k);
+    el.addEventListener('input', () => {
+      if (run.mode === 'run' || el.value === '') return;
+      const n = Number(el.value);
+      if (!isFinite(n)) return;
+      mems[sel][k] = clamp(k, n);
+      saveMem(); render();
+    });
+    el.addEventListener('change', () => { syncInputs(); });
+    el.addEventListener('blur', () => { syncInputs(); });
+  });
+  document.querySelectorAll('[data-mem]').forEach(b => b.addEventListener('click', () => {
+    if (run.mode === 'run') return;
+    sel = Number(b.dataset.mem);
+    if (run.mode === 'done') run.mode = 'idle';
+    saveMem(); syncAll();
+  }));
+  const nameIn = $('nameIn');
+  nameIn.addEventListener('input', () => {
+    if (run.mode === 'run') return;
+    mems[sel].name = nameIn.value.slice(0,12);
+    saveMem(); syncMemButtons();
+  });
+  nameIn.addEventListener('change', () => { nameIn.value = mems[sel].name; });
+
+  $('startBtn').addEventListener('click', () => {
+    if (run.mode === 'run') { run.paused ? resumeRun() : pauseRun(); }
+    else startRun();
+  });
+  $('nextBtn').addEventListener('click', skipRun);
+  $('resetBtn').addEventListener('click', resetRun);
+
+  $('soundBtn').addEventListener('click', () => {
+    initAudio();
+    prefs.sound = !prefs.sound; savePrefs(); syncPrefs();
+    if (prefs.sound) playCountdown();
+  });
+  $('voiceBtn').addEventListener('click', () => {
+    prefs.voice = !prefs.voice; savePrefs(); syncPrefs();
+  });
+  $('volIn').addEventListener('input', () => {
+    prefs.vol = Number($('volIn').value); savePrefs(); syncPrefs();
+  });
+  $('volIn').addEventListener('change', () => { initAudio(); playCountdown(); });
+  $('testBtn').addEventListener('click', soundTest);
+}
+function syncPrefs(){
+  const sb = $('soundBtn');
+  sb.textContent = prefs.sound ? '音 ON' : '音 OFF';
+  sb.setAttribute('aria-pressed', prefs.sound ? 'true' : 'false');
+  sb.classList.toggle('off', !prefs.sound);
+  const vb = $('voiceBtn');
+  vb.textContent = '声で知らせる：' + (prefs.voice ? 'ON' : 'OFF');
+  vb.setAttribute('aria-pressed', prefs.voice ? 'true' : 'false');
+  vb.classList.toggle('off', !prefs.voice);
+  $('volIn').value = prefs.vol;
+  $('volOut').textContent = prefs.vol + '%';
+  if (prefs.sound) $('msg').textContent = '';
+}
+
+/* ===== 音（Web Audio・矩形波） ===== */
+let actx = null;
+function initAudio(){
+  try {
+    if (!actx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) actx = new AC();
+    }
+    if (actx && actx.state !== 'running') {
+      const p = actx.resume();
+      if (p && p.catch) p.catch(() => {});
+    }
+  } catch(e){}
+}
+function beep(freq, dur, at){
+  if (!actx || !prefs.sound) return;
+  try {
+    if (actx.state !== 'running') { const p = actx.resume(); if (p && p.catch) p.catch(() => {}); }
+    const t = actx.currentTime + (at || 0);
+    const o = actx.createOscillator(), g = actx.createGain();
+    const v = prefs.vol / 100, a = 0.004, r = 0.008;
+    o.type = 'square';
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(v, t + a);          // 立ち上がり
+    g.gain.setValueAtTime(v, t + Math.max(a, dur - r));
+    g.gain.linearRampToValueAtTime(0, t + dur);        // 立ち下がり
+    o.connect(g); g.connect(actx.destination);
+    o.start(t); o.stop(t + dur + 0.02);
+  } catch(e){}
+}
+function playCountdown(o){ beep(2000, 0.12, o); }
+function playWork(o){ o = o || 0; beep(2600, 0.9, o); }
+function playRest(o){ o = o || 0; beep(1800, 0.22, o); beep(1800, 0.22, o + 0.32); }
+function playPrep(o){ beep(1400, 0.25, o); }
+function playFinish(o){ o = o || 0; beep(2600, 0.5, o); beep(2000, 0.5, o + 0.65); beep(2600, 1.0, o + 1.3); }
+function soundTest(){
+  initAudio();
+  if (!prefs.sound) { $('msg').textContent = '音がOFFです。画面上の「音 ON／OFF」で切り替えてください。'; return; }
+  $('msg').textContent = '';
+  playCountdown(0.05); playWork(0.6); playRest(1.9); playFinish(2.9);
+}
+
+/* ===== 声 ===== */
+function speak(text){
+  if (!prefs.voice) return;
+  try {
+    if (!('speechSynthesis' in window)) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ja-JP';
+    u.volume = prefs.vol / 100;
+    speechSynthesis.speak(u);
+  } catch(e){}
+}
+
+/* ===== 無音wavのループ（メディア音のチャンネル維持） ===== */
+let silent = null;
+function makeSilentWav(){
+  const sr = 8000, n = sr / 4;
+  const buf = new ArrayBuffer(44 + n * 2), dv = new DataView(buf);
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
+  w(0,'RIFF'); dv.setUint32(4, 36 + n * 2, true); w(8,'WAVE'); w(12,'fmt ');
+  dv.setUint32(16,16,true); dv.setUint16(20,1,true); dv.setUint16(22,1,true);
+  dv.setUint32(24,sr,true); dv.setUint32(28,sr * 2,true); dv.setUint16(32,2,true); dv.setUint16(34,16,true);
+  w(36,'data'); dv.setUint32(40, n * 2, true);
+  return URL.createObjectURL(new Blob([buf], { type:'audio/wav' }));
+}
+function startSilent(){
+  try {
+    if (!silent) { silent = new Audio(makeSilentWav()); silent.loop = true; }
+    const p = silent.play();
+    if (p && p.catch) p.catch(() => {});
+  } catch(e){}
+}
+function stopSilent(){ try { if (silent) silent.pause(); } catch(e){} }
+
+/* ===== 画面を消さない・振動 ===== */
+let wake = null;
+async function acquireWake(){
+  try {
+    if ('wakeLock' in navigator && !wake) {
+      wake = await navigator.wakeLock.request('screen');
+      wake.addEventListener('release', () => { wake = null; });
+    }
+  } catch(e){ wake = null; }
+}
+function releaseWake(){
+  try { if (wake) wake.release(); } catch(e){}
+  wake = null;
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && run.mode === 'run' && !run.paused) acquireWake();
+});
+function vib(p){ try { if (navigator.vibrate) navigator.vibrate(p); } catch(e){} }
+
+/* ===== 起動 ===== */
+loadAll();
+buildRows();
+bindUI();
+applyLock();
+syncPrefs();
+syncAll();
+setInterval(tick, 100);
+
+/* オフライン用（HTTPSで開いたときだけ登録。失敗しても動作には影響しない） */
+try {
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+} catch(e){}
+</script>
+</body>
+</html>
